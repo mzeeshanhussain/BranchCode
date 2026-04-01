@@ -45,7 +45,7 @@
 </head>
 <body>
     <h1>Journey Test</h1>
-    <p id="version">Version: journey-test-v2026-03-31-12</p>
+    <p id="version">Version: journey-test-v2026-03-31-13</p>
     <p>`branch.init(...)` runs on page load. Use the buttons below to trigger one test at a time.</p>
 
     <button id="run-base" type="button">Run Base Test</button>
@@ -153,9 +153,11 @@
 
         if (event === 'didCloseJourney' && !handled) {
             handled = true;
-            log('Trigger Pageview After Closing Journey');
-           sleep(300);
+             sleep(500);
             branch.track('pageview');
+            log('Trigger Pageview After Closing Journey');
+           
+            
         }
     });
 
