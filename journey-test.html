@@ -45,7 +45,7 @@
 </head>
 <body>
     <h1>Journey Test</h1>
-    <p id="version">Version: journey-test-v2026-03-31-13</p>
+    <p id="version">Version: journey-test-v2026-03-31-14</p>
     <p>`branch.init(...)` runs on page load. Use the buttons below to trigger one test at a time.</p>
 
     <button id="run-base" type="button">Run Base Test</button>
@@ -145,19 +145,17 @@
             branch.track('pageview');
         }
 
-       async function runJourneyTestListeners(payload) {
+      async function runJourneyTestListeners(payload) {
     var handled = false;
 
-    branch.addListener(function(event, data) {
+    branch.addListener(async function(event, data) {
         log('Listener event', { event: event, data: data || {} });
 
         if (event === 'didCloseJourney' && !handled) {
             handled = true;
-             sleep(500);
+            await new Promise(resolve => setTimeout(resolve, 300));
             branch.track('pageview');
             log('Trigger Pageview After Closing Journey');
-           
-            
         }
     });
 
@@ -171,6 +169,7 @@
         });
     });
 }
+
 
         function ensureReadyAndRun(fn) {
             if (!branchReady || !basePayload) {
