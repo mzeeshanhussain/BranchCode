@@ -57,6 +57,9 @@
     <button id="run-listeners" type="button">Run Listener Test</button>
     <p>Listener flow: close on `didShowJourney`, then reapply payload and pageview after `didCloseJourney`.</p>
 
+    <button id="run-listeners-with-promise" type="button">Run Listener Test with Promise</button>
+    <p>Listener flow: close on `didShowJourney`, then reapply payload and pageview after `didCloseJourney`.</p>
+
     <pre id="logs">Waiting for Branch init...</pre>
 
     <script>
@@ -65,6 +68,7 @@
         var baseButton = document.getElementById('run-base');
         var timeoutsButton = document.getElementById('run-timeouts');
         var listenersButton = document.getElementById('run-listeners');
+        var listenersWithPromiseButton = document.getElementById('run-listeners-with-promise');
         var branchReady = false;
         var basePayload = null;
         var logStartMs = Date.now();
@@ -144,8 +148,30 @@
             await sleep(500);
             branch.track('pageview');
         }
+async function runJourneyTestListeners(payload) {
+    var handled = false;
 
-      async function runJourneyTestListeners(payload) {
+    branch.addListener(async function(event, data) {
+        log('Listener event', { event: event, data: data || {} });
+
+        if (event === 'didCloseJourney' && !handled) {
+            handled = true;
+            branch.track('pageview');
+            log('Trigger Pageview After Closing Journey');
+        }
+    });
+
+    log('Running listener test', payload);
+    branch.setBranchViewData(payload);
+
+    branch.closeJourney(function(err, data) {
+        log('Listener closeJourney callback', {
+            err: err ? String(err.message || err) : '',
+            data: data || {}
+        });
+    });
+}
+      async function runJourneyTestListenersWithPromise(payload) {
     var handled = false;
 
     branch.addListener(async function(event, data) {
@@ -215,8 +241,11 @@
             ensureReadyAndRun(runJourneyTestTimeouts);
         });
 
-        listenersButton.addEventListener('click', function() {
+         listenersButton.addEventListener('click', function() {
             ensureReadyAndRun(runJourneyTestListeners);
+        });
+        listenersWithPromiseButton.addEventListener('click', function() {
+            ensureReadyAndRun(runJourneyTestListenersWithPromise);
         });
     </script>
 </body>
