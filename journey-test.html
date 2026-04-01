@@ -145,22 +145,29 @@
             branch.track('pageview');
         }
 
-        async function runJourneyTestListeners(payload) {
-            branch.addListener(function(event, data) {
-                log('Listener event', { event: event, data: data || {} });
-            });
-            log('Running listener test', payload);
-            branch.setBranchViewData(payload);
-           
-            branch.closeJourney(function(err, data) {
-                log('Listener closeJourney callback', {
-                    err: err ? String(err.message || err) : '',
-                    data: data || {}
-                });
-            });
-            
+       async function runJourneyTestListeners(payload) {
+    var handled = false;
+
+    branch.addListener(function(event, data) {
+        log('Listener event', { event: event, data: data || {} });
+
+        if (event === 'didCloseJourney' && !handled) {
+            handled = true;
+            log('Trigger Pageview After Closing Journey');
             branch.track('pageview');
         }
+    });
+
+    log('Running listener test', payload);
+    branch.setBranchViewData(payload);
+
+    branch.closeJourney(function(err, data) {
+        log('Listener closeJourney callback', {
+            err: err ? String(err.message || err) : '',
+            data: data || {}
+        });
+    });
+}
 
         function ensureReadyAndRun(fn) {
             if (!branchReady || !basePayload) {
