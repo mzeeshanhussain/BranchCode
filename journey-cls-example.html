@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Branch CLS Safe Example</title>
+  <title>Branch Real Layout</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Branch Web SDK -->
+  <!-- Branch SDK -->
   <script>
     (function(b,r,a,n,c,h,_,s,d,k){
       if(!b[n]||!b[n]._q){
@@ -24,52 +24,59 @@
       font-family: Arial;
     }
 
-    /* Top Nav */
-    .nav {
-      position: fixed;
-      top: 0;
-      width: 100%;
+    /* Journey reserved space */
+    .journey-slot {
+      height: 0;
+      transition: height 0.2s ease;
+      background: #f5f5f5;
+    }
+
+    /* Company header */
+    .header {
       height: 60px;
       background: #333;
       color: white;
       display: flex;
       align-items: center;
       padding-left: 20px;
-      z-index: 2000; /* ensure above banner */
     }
 
-    /* 🔥 FIX: push Branch banner below nav */
-    iframe[src*="branch"],
-    #branch-banner-iframe,
-    .branch-banner {
-      top: 60px !important;
+    /* Menu bar */
+    .menu {
+      height: 50px;
+      background: #555;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding-left: 20px;
     }
 
-    /* Reserved space for Journey */
-    .journey-slot {
-      margin-top: 60px;
-      height: 0;
-      transition: height 0.2s ease;
-    }
-
-    /* 🔥 FIX: ensure content is not hidden */
+    /* Content */
     .content {
-      padding: 80px 20px 20px; /* nav + spacing */
+      padding: 20px;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="nav">My Website</div>
-
+  <!-- 1. Journey space -->
   <div id="journey-slot" class="journey-slot"></div>
 
+  <!-- 2. Company -->
+  <div class="header">My Company</div>
+
+  <!-- 3. Menu -->
+  <div class="menu">Home | Products | Contact</div>
+
+  <!-- 4. Content -->
   <div class="content">
     <h1>Homepage</h1>
     <p>This is sample content.</p>
     <p>Scroll down to see more content.</p>
     <p>Lorem ipsum dolor sit amet...</p>
+    <p>More content...</p>
+    <p>More content...</p>
   </div>
 
   <script>
@@ -78,7 +85,7 @@
     const slot = document.getElementById('journey-slot');
 
     branch.addListener('willShowJourney', function() {
-      slot.style.height = '80px';
+      slot.style.height = '80px'; // match banner height
     });
 
     branch.addListener('didNotShowJourney', function() {
