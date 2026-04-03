@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Branch CLS Safe Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Branch Web SDK -->
+  <script>
+    (function(b,r,a,n,c,h,_,s,d,k){
+      if(!b[n]||!b[n]._q){
+        for(;s<_.length;)c(h,_[s++]);
+        d=r.createElement(a);d.async=1;d.src="https://cdn.branch.io/branch-latest.min.js";
+        k=r.getElementsByTagName(a)[0];k.parentNode.insertBefore(d,k);
+        b[n]=h
+      }
+    })(window,document,"script","branch",function(b,r){
+      b[r]=function(){b._q.push([r,arguments])}
+    },{_q:[],_v:1},["init","addListener"],0);
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+    }
+
+    /* Top Nav */
+    .nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      height: 60px;
+      background: #333;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding-left: 20px;
+      z-index: 1000;
+    }
+
+    /* Reserved space for Journey */
+    .journey-slot {
+      margin-top: 60px; /* below nav */
+      height: 0;
+      transition: height 0.2s ease;
+    }
+
+    /* Content */
+    .content {
+      padding: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="nav">My Website</div>
+
+  <!-- RESERVED SLOT -->
+  <div id="journey-slot" class="journey-slot"></div>
+
+  <div class="content">
+    <h1>Homepage</h1>
+    <p>This is sample content.</p>
+    <p>Scroll down to see more content.</p>
+    <p>Lorem ipsum dolor sit amet...</p>
+  </div>
+
+  <script>
+    branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D');
+
+    const slot = document.getElementById('journey-slot');
+
+    // BEFORE Journey shows → reserve space
+    branch.addListener('willShowJourney', function() {
+      slot.style.height = '80px'; // match banner height
+    });
+
+    // If Journey is NOT shown → remove space
+    branch.addListener('didNotShowJourney', function() {
+      slot.style.height = '0px';
+    });
+  </script>
+
+</body>
+</html>
