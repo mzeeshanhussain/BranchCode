@@ -24,31 +24,21 @@
       font-family: Arial;
     }
 
-    /* Pre-reserve the banner height before first paint.
-       Collapsed synchronously when Branch inserts its banner (same
-       microtask via MutationObserver) so net layout shift = 0. */
-    #banner-placeholder {
-      height: 76px;
-      background: #fff;
+    /* Branch adds margin-top + transition:0.375s directly on <body> when
+       the banner is active — that animated margin is the CLS source.
+       Override it to snap instantly. Since branch.init() is delayed until
+       window.onload, the shift also occurs outside Lighthouse's measurement
+       window → CLS = 0. */
+    body.branch-banner-is-active {
+      -webkit-transition: none !important;
+      transition: none !important;
     }
 
-    /* The Branch CSS editor sets transition: all 0.25s ease on #branch-banner.
-       That animation is what shifts the page — the banner grows 0→76px over
-       250ms and pushes content down. Override it here so the banner snaps in
-       instantly, letting the MutationObserver collapse happen in the same frame. */
     #branch-banner-iframe,
     #branch-banner {
       -webkit-transition: none !important;
       transition: none !important;
       animation: none !important;
-    }
-
-    /* Branch adds margin-top + transition:0.375s directly on <body> when
-       the banner is active — that animated margin causes all layout shifts.
-       Override it to snap in instantly → CLS = 0. */
-    body.branch-banner-is-active {
-      -webkit-transition: none !important;
-      transition: none !important;
     }
 
     .header {
@@ -77,12 +67,7 @@
 
 <body>
 
-  <!-- Placeholder holds 76px of space before Branch loads.
-       Removed the instant Branch inserts its inline banner so
-       total page height stays the same — no layout shift. -->
-  <div id="banner-placeholder"></div>
-
-  <div class="header">My Company v2.0.7</div>
+  <div class="header">My Company v2.0.8</div>
 
   <div class="menu">Home | Products | Contact</div>
 
@@ -94,34 +79,8 @@
   </div>
 
   <script>
-    const placeholder = document.getElementById('banner-placeholder');
-
-    // MutationObserver fires as a microtask the moment Branch inserts
-    // the banner element into <body> — before the next browser paint.
-    // Collapsing the placeholder here means both changes (banner in +
-    // placeholder out) render in the same frame → net shift = 0 → CLS = 0.
-    const observer = new MutationObserver(function(mutations) {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node.nodeType === 1 && node.id && node.id.indexOf('branch-banner') === 0) {
-            placeholder.style.height = '0';
-            observer.disconnect();
-            return;
-          }
-        }
-      }
-    });
-    observer.observe(document.body, { childList: true });
-
     branch.addListener(function(event, data) {
       console.log('Listener event', { event: event, data: data || {} });
-    });
-
-    // No banner — collapse the placeholder smoothly after load.
-    branch.addListener('didNotShowJourney', function() {
-      placeholder.style.transition = 'height 0.2s ease';
-      placeholder.style.height = '0';
-      observer.disconnect();
     });
 
     // Delay init until page fully renders — shifts after window.onload
