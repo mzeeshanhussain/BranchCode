@@ -35,19 +35,26 @@
       display: flex;
       align-items: center;
       padding-left: 20px;
-      z-index: 1000;
+      z-index: 2000; /* ensure above banner */
+    }
+
+    /* 🔥 FIX: push Branch banner below nav */
+    iframe[src*="branch"],
+    #branch-banner-iframe,
+    .branch-banner {
+      top: 60px !important;
     }
 
     /* Reserved space for Journey */
     .journey-slot {
-      margin-top: 60px; /* below nav */
+      margin-top: 60px;
       height: 0;
       transition: height 0.2s ease;
     }
 
-    /* Content */
+    /* 🔥 FIX: ensure content is not hidden */
     .content {
-      padding: 20px;
+      padding: 80px 20px 20px; /* nav + spacing */
     }
   </style>
 </head>
@@ -56,7 +63,6 @@
 
   <div class="nav">My Website</div>
 
-  <!-- RESERVED SLOT -->
   <div id="journey-slot" class="journey-slot"></div>
 
   <div class="content">
@@ -71,12 +77,10 @@
 
     const slot = document.getElementById('journey-slot');
 
-    // BEFORE Journey shows → reserve space
     branch.addListener('willShowJourney', function() {
-      slot.style.height = '80px'; // match banner height
+      slot.style.height = '80px';
     });
 
-    // If Journey is NOT shown → remove space
     branch.addListener('didNotShowJourney', function() {
       slot.style.height = '0px';
     });
