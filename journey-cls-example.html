@@ -24,12 +24,14 @@
       font-family: Arial;
     }
 
-   
+    /* Pre-reserve the banner height before first paint to eliminate CLS.
+       The space is always held on initial load; we only collapse it if
+       the Journey will NOT show (didNotShowJourney). */
     .journey-rail {
-      height: 0;
+      height: 77px; /* 76px content + 1px border-top from .branch-banner-content */
       overflow: hidden;
-      transition: height 0.2s ease;
       background: #fff;
+      /* No transition on initial render — transition only after SDK resolves */
     }
 
     .header {
@@ -78,17 +80,22 @@
     branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D');
 
     const rail = document.querySelector('.journey-rail');
-      branch.addListener( function(event, data) {
-        console.log('Listener event', { event: event, data: data || {} });
 
+    branch.addListener(function(event, data) {
+      console.log('Listener event', { event: event, data: data || {} });
     });
-    // Show space ONLY when Journey will render
+
+    // Space is pre-reserved in CSS — nothing to do when Journey shows.
+    // willShowJourney: no layout change needed, CLS = 0
     branch.addListener('willShowJourney', function() {
-      rail.style.height = '80px';
+      // Space was already reserved, no shift occurs
     });
 
-    // Remove space if not shown
+    // Collapse the reserved space if Journey will NOT show.
+    // Add transition here (after initial paint) so collapse is smooth
+    // but doesn't count against CLS since no content shifted on load.
     branch.addListener('didNotShowJourney', function() {
+      rail.style.transition = 'height 0.2s ease';
       rail.style.height = '0px';
     });
   </script>
