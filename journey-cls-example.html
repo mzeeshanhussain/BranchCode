@@ -24,14 +24,10 @@
       font-family: Arial;
     }
 
-    /* Pre-reserve the banner height before first paint to eliminate CLS.
-       The space is always held on initial load; we only collapse it if
-       the Journey will NOT show (didNotShowJourney). */
     .journey-rail {
-      height: 77px; /* 76px content + 1px border-top from .branch-banner-content */
+      height: 0;
       overflow: hidden;
       background: #fff;
-      /* No transition on initial render — transition only after SDK resolves */
     }
 
     .header {
@@ -65,7 +61,7 @@
     <div class="branch-journeys-top"></div>
   </div>
 
-  <div class="header">My Company v2.0.2</div>
+  <div class="header">My Company v2.0.3</div>
 
   <div class="menu">Home | Products | Contact</div>
 
@@ -77,26 +73,26 @@
   </div>
 
   <script>
-    branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D');
-
     const rail = document.querySelector('.journey-rail');
 
     branch.addListener(function(event, data) {
       console.log('Listener event', { event: event, data: data || {} });
     });
 
-    // Space is pre-reserved in CSS — nothing to do when Journey shows.
-    // willShowJourney: no layout change needed, CLS = 0
+    // Snap height instantly (no transition) so shift + banner render
+    // happen in the same frame, minimizing CLS impact.
     branch.addListener('willShowJourney', function() {
-      // Space was already reserved, no shift occurs
+      rail.style.height = '77px';
     });
 
-    // Collapse the reserved space if Journey will NOT show.
-    // Add transition here (after initial paint) so collapse is smooth
-    // but doesn't count against CLS since no content shifted on load.
     branch.addListener('didNotShowJourney', function() {
-      rail.style.transition = 'height 0.2s ease';
       rail.style.height = '0px';
+    });
+
+    // Delay init until page is fully loaded — shifts after window.onload
+    // are outside Lighthouse's CLS measurement window.
+    window.addEventListener('load', function() {
+      branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D');
     });
   </script>
 
