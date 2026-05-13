@@ -45,8 +45,11 @@
 </head>
 <body>
     <h1>Journey Test</h1>
+
     <p id="version">Version: journey-test-v2026-03-31-14</p>
-    <p>`branch.init(...)` runs on page load. Use the buttons below to trigger one test at a time.</p>
+    <p><code>branch.init(...)</code> runs on page load. Use the buttons below to trigger one test at a time.</p>
+
+    <p><b>Private Relay: </b><label id="pRelay">Checking...</label></p>
 
     <button id="run-base" type="button">Run Base Test</button>
     <p>Immediate sequence: set data, close Journey, track pageview.</p>
@@ -55,10 +58,10 @@
     <p>Known-good timed sequence with waits between steps.</p>
 
     <button id="run-listeners" type="button">Run Listener Test</button>
-    <p>Listener flow: close on `didShowJourney`, then reapply payload and pageview after `didCloseJourney`.</p>
+    <p>Listener flow: close on <code>didShowJourney</code>, then reapply payload and pageview after <code>didCloseJourney</code>.</p>
 
     <button id="run-listeners-with-promise" type="button">Run Listener Test with Promise</button>
-    <p>Listener flow: close on `didShowJourney`, then reapply payload and pageview after `didCloseJourney`.</p>
+    <p>Listener flow: close on <code>didShowJourney</code>, then reapply payload and pageview after <code>didCloseJourney</code>.</p>
 
     <pre id="logs">Waiting for Branch init...</pre>
 
@@ -93,9 +96,11 @@
             var timestamp = now.toISOString() + ' +' + elapsed + 'ms';
 
             console.log('[journey-test][' + timestamp + ']', message, data === undefined ? '' : data);
+
             if (!logsEl) return;
 
             var line = '[journey-test][' + timestamp + '] ' + message;
+
             if (data !== undefined) {
                 try {
                     line += '\n' + JSON.stringify(data, null, 2);
@@ -116,33 +121,50 @@
                 setTimeout(resolve, ms);
             });
         }
-async function checkPrivateRelay() {
-  try {
-    // Using a service like vpnapi.io or ip-api.com
-    const response = await fetch('https://vpnapi.io');
-    const data = await response.json();
-    
-    if (data.security.relay === true || data.network.org === "iCloud Private Relay") {
-      console.log("User is using iCloud Private Relay");
-    } else {
-      console.log("Normal connection");
-    }
-  } catch (error) {
-    console.error("Detection failed", error);
-  }
-}
+
+        async function checkPrivateRelay() {
+            var pRelayLabel = document.getElementById('pRelay');
+
+            if (!pRelayLabel) {
+                console.error('Private Relay label not found');
+                return;
+            }
+
+            pRelayLabel.textContent = 'Checking...';
+
+            try {
+                const response = await fetch('https://vpnapi.io');
+                const data = await response.json();
+
+                if (data.security?.relay === true || data.network?.org === 'iCloud Private Relay') {
+                    console.log('User is using iCloud Private Relay');
+                    pRelayLabel.textContent = 'User is using iCloud Private Relay';
+                } else {
+                    console.log('Normal connection');
+                    pRelayLabel.textContent = 'Normal connection';
+                }
+            } catch (error) {
+                console.error('Detection failed', error);
+                pRelayLabel.textContent = 'Detection failed';
+            }
+        }
+
         async function runJourneyTestBase(payload) {
             branch.addListener(function(event, data) {
                 log('Base listener event', { event: event, data: data || {} });
             });
+
             log('Running base test', payload);
+
             branch.setBranchViewData(payload);
+
             branch.closeJourney(function(err, data) {
                 log('Base closeJourney callback', {
                     err: err ? String(err.message || err) : '',
                     data: data || {}
                 });
             });
+
             branch.track('pageview');
         }
 
@@ -150,76 +172,88 @@ async function checkPrivateRelay() {
             branch.addListener(function(event, data) {
                 log('Timeout listener event', { event: event, data: data || {} });
             });
+
             log('Running timeout test', payload);
+
             branch.setBranchViewData(payload);
+
             await sleep(300);
+
             branch.closeJourney(function(err, data) {
                 log('Timeout closeJourney callback', {
                     err: err ? String(err.message || err) : '',
                     data: data || {}
                 });
             });
+
             await sleep(500);
+
             branch.track('pageview');
         }
-async function runJourneyTestListeners(payload) {
-    var handled = false;
 
-    branch.addListener(async function(event, data) {
-        log('Listener event', { event: event, data: data || {} });
+        async function runJourneyTestListeners(payload) {
+            var handled = false;
 
-        if (event === 'didCloseJourney' && !handled) {
-            handled = true;
-            branch.track('pageview');
-            log('Trigger Pageview After Closing Journey');
+            branch.addListener(async function(event, data) {
+                log('Listener event', { event: event, data: data || {} });
+
+                if (event === 'didCloseJourney' && !handled) {
+                    handled = true;
+                    branch.track('pageview');
+                    log('Trigger Pageview After Closing Journey');
+                }
+            });
+
+            log('Running listener test', payload);
+
+            branch.setBranchViewData(payload);
+
+            branch.closeJourney(function(err, data) {
+                log('Listener closeJourney callback', {
+                    err: err ? String(err.message || err) : '',
+                    data: data || {}
+                });
+            });
         }
-    });
 
-    log('Running listener test', payload);
-    branch.setBranchViewData(payload);
+        async function runJourneyTestListenersWithPromise(payload) {
+            var handled = false;
 
-    branch.closeJourney(function(err, data) {
-        log('Listener closeJourney callback', {
-            err: err ? String(err.message || err) : '',
-            data: data || {}
-        });
-    });
-}
-      async function runJourneyTestListenersWithPromise(payload) {
-    var handled = false;
+            branch.addListener(async function(event, data) {
+                log('Listener event', { event: event, data: data || {} });
 
-    branch.addListener(async function(event, data) {
-        log('Listener event', { event: event, data: data || {} });
+                if (event === 'didCloseJourney' && !handled) {
+                    handled = true;
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    branch.track('pageview');
+                    log('Trigger Pageview After Closing Journey');
+                }
+            });
 
-        if (event === 'didCloseJourney' && !handled) {
-            handled = true;
-            await new Promise(resolve => setTimeout(resolve, 300));
-            branch.track('pageview');
-            log('Trigger Pageview After Closing Journey');
+            log('Running listener test', payload);
+
+            branch.setBranchViewData(payload);
+
+            branch.closeJourney(function(err, data) {
+                log('Listener closeJourney callback', {
+                    err: err ? String(err.message || err) : '',
+                    data: data || {}
+                });
+            });
         }
-    });
-
-    log('Running listener test', payload);
-    branch.setBranchViewData(payload);
-
-    branch.closeJourney(function(err, data) {
-        log('Listener closeJourney callback', {
-            err: err ? String(err.message || err) : '',
-            data: data || {}
-        });
-    });
-}
-
 
         function ensureReadyAndRun(fn) {
             if (!branchReady || !basePayload) {
                 log('Branch is not ready yet');
                 return;
             }
+
             fn(basePayload);
         }
 
         console.log('[journey-test] version', JOURNEY_TEST_VERSION);
+
+        checkPrivateRelay();
 
         branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D', function(err, data) {
             if (err) {
@@ -244,6 +278,7 @@ async function runJourneyTestListeners(payload) {
             };
 
             branchReady = true;
+
             log('Branch init complete');
         });
 
@@ -255,17 +290,18 @@ async function runJourneyTestListeners(payload) {
             ensureReadyAndRun(runJourneyTestTimeouts);
         });
 
-         listenersButton.addEventListener('click', function() {
+        listenersButton.addEventListener('click', function() {
             ensureReadyAndRun(runJourneyTestListeners);
         });
+
         listenersWithPromiseButton.addEventListener('click', function() {
             ensureReadyAndRun(runJourneyTestListenersWithPromise);
         });
     </script>
 
-    <a href='https://linkdebugger.app.link/fgPUGVYJ52b'>Normal Link</a>
+    <a href="https://linkdebugger.app.link/fgPUGVYJ52b">Normal Link</a>
     <br>
-     <a href='https://linkdebugger.app.link/iDMarl1J52b'>Native Link</a>
+    <a href="https://linkdebugger.app.link/iDMarl1J52b">Native Link</a>
     <br>
 </body>
 </html>
