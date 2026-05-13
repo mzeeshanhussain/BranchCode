@@ -116,7 +116,21 @@
                 setTimeout(resolve, ms);
             });
         }
-
+async function checkPrivateRelay() {
+  try {
+    // Using a service like vpnapi.io or ip-api.com
+    const response = await fetch('https://vpnapi.io');
+    const data = await response.json();
+    
+    if (data.security.relay === true || data.network.org === "iCloud Private Relay") {
+      console.log("User is using iCloud Private Relay");
+    } else {
+      console.log("Normal connection");
+    }
+  } catch (error) {
+    console.error("Detection failed", error);
+  }
+}
         async function runJourneyTestBase(payload) {
             branch.addListener(function(event, data) {
                 log('Base listener event', { event: event, data: data || {} });
