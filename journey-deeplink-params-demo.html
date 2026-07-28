@@ -312,32 +312,20 @@
         paramsEl.textContent = JSON.stringify(urlContext, null, 2);
         payloadEl.textContent = JSON.stringify(currentPayload, null, 2);
 
-        // init() itself can auto-show a Journey banner (with default data) as soon as
-        // it starts, before any code in the init() callback has a chance to run. So the
-        // listener has to be registered BEFORE init() is called — not inside its
-        // callback — or the very first didShowJourney event is missed entirely. The SDK
-        // queues calls in the order they're made, so this ordering is safe even before
-        // the real script has loaded.
-        var dataApplied = false;
+        // Same pattern as journey-test.html's "Listener Test": setBranchViewData()
+        // and closeJourney() are called directly, back-to-back, from a plain callback —
+        // never from inside a Journey lifecycle event handler. Calling closeJourney()
+        // from within the didShowJourney callback itself is a re-entrant call into the
+        // SDK while it's still mid-dispatch, which accepts the close (err: "") but never
+        // completes the willCloseJourney/didCloseJourney lifecycle. Registering the
+        // listener before init() just makes sure we don't miss didCloseJourney.
+        var handled = false;
 
         branch.addListener(function(event, eventData) {
             log('Journey event', { event: event, data: eventData || {} });
 
-            if (event === 'didShowJourney' && !dataApplied) {
-                branch.closeJourney(function(closeErr, closeData) {
-                    log('closeJourney callback', {
-                        err: closeErr ? String(closeErr.message || closeErr) : '',
-                        data: closeData || {}
-                    });
-                });
-            }
-
-            if (event === 'didCloseJourney' && !dataApplied) {
-                dataApplied = true;
-
-                branch.setBranchViewData(currentPayload);
-                log('Applied setBranchViewData from URL params', currentPayload);
-
+            if (event === 'didCloseJourney' && !handled) {
+                handled = true;
                 branch.track('pageview');
                 log('Re-triggered pageview to show Journey with correct data');
             }
@@ -350,6 +338,16 @@
             }
 
             log('Branch init data', data || {});
+
+            branch.setBranchViewData(currentPayload);
+            log('Applied setBranchViewData from URL params', currentPayload);
+
+            branch.closeJourney(function(closeErr, closeData) {
+                log('closeJourney callback', {
+                    err: closeErr ? String(closeErr.message || closeErr) : '',
+                    data: closeData || {}
+                });
+            });
 
             branchReady = true;
             log('Branch init complete');
