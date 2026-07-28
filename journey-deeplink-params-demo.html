@@ -79,9 +79,20 @@
 
     <p>
         This page reads search-context query parameters directly from the URL and passes them into
-        the Journey deep link via <code>branch.setBranchViewData()</code>, before the Journey banner
-        renders. No page-by-page configuration is required — any page using this same snippet will
-        automatically pick up whatever parameters are present in its URL.
+        the Journey deep link via <code>branch.setBranchViewData()</code>. No page-by-page
+        configuration is required — any page using this same snippet will automatically pick up
+        whatever parameters are present in its URL.
+    </p>
+
+    <p>
+        <b>Why the close/reapply flow below:</b> <code>branch.init()</code> fires its own automatic
+        pageview to check for Journeys, which can render the banner with default data before our
+        code gets a chance to run. Per Branch's guidance for
+        <a href="https://help.branch.io/faq/docs/can-we-close-a-journey-programmatically">closing a Journey programmatically</a>,
+        we let that first banner show, immediately close it, wait for the <code>didCloseJourney</code>
+        event to confirm it's safe, then apply our real data and re-trigger the pageview so the
+        banner re-renders correctly. A fixed timeout instead of the event is what causes the race
+        condition where the banner shows generic data.
     </p>
 
     <p>Supported query parameters (all optional):</p>
@@ -114,10 +125,11 @@
     <h2>Payload sent to setBranchViewData()</h2>
     <pre id="payload">(waiting for Branch init...)</pre>
 
-    <h2>Run test</h2>
+    <h2>Manually re-trigger</h2>
     <button id="run-test" type="button">Set Data, Close Journey, Track Pageview</button>
-    <p>Known-good timed sequence: applies the parsed payload, waits, closes the Journey banner,
-        waits, then tracks a pageview.</p>
+    <p>The correction above already runs automatically once on load. This button is only for
+        manually re-showing the Journey afterward (e.g. after closing it) using a fixed-delay
+        sequence instead of listeners.</p>
 
     <pre id="logs">Waiting for Branch init...</pre>
 
@@ -212,6 +224,14 @@
         paramsEl.textContent = JSON.stringify(urlContext, null, 2);
         payloadEl.textContent = JSON.stringify(currentPayload, null, 2);
 
+        // init() itself can auto-show a Journey banner (with default data) before our
+        // code runs. Rather than race that with a timeout, we listen for the Journey
+        // lifecycle events and only touch setBranchViewData/track once didCloseJourney
+        // confirms it's safe — this is the same pattern proven out in journey-test.html's
+        // "Listener Test" flow, and matches Branch's documented guidance for
+        // programmatically closing/reapplying a Journey.
+        var dataApplied = false;
+
         branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D', function(err, data) {
             if (err) {
                 log('Branch init error', err);
@@ -220,8 +240,28 @@
 
             log('Branch init data', data || {});
 
-            branch.setBranchViewData(currentPayload);
-            log('Applied setBranchViewData from URL params', currentPayload);
+            branch.addListener(function(event, eventData) {
+                log('Journey event', { event: event, data: eventData || {} });
+
+                if (event === 'didShowJourney' && !dataApplied) {
+                    branch.closeJourney(function(closeErr, closeData) {
+                        log('closeJourney callback', {
+                            err: closeErr ? String(closeErr.message || closeErr) : '',
+                            data: closeData || {}
+                        });
+                    });
+                }
+
+                if (event === 'didCloseJourney' && !dataApplied) {
+                    dataApplied = true;
+
+                    branch.setBranchViewData(currentPayload);
+                    log('Applied setBranchViewData from URL params', currentPayload);
+
+                    branch.track('pageview');
+                    log('Re-triggered pageview to show Journey with correct data');
+                }
+            });
 
             branchReady = true;
             log('Branch init complete');
