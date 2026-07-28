@@ -40,6 +40,23 @@
             font-size: 14px;
         }
 
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+        }
+
+        .copy-button {
+            padding: 2px 8px;
+            font-size: 11px;
+            margin-top: 0;
+        }
+
         #params, #payload {
             border: 1px solid #ccc;
             background: #f7f7f7;
@@ -119,10 +136,16 @@
         </a>
     </div>
 
-    <h2>Parsed from URL</h2>
+    <div class="section-header">
+        <h2>Parsed from URL</h2>
+        <button class="copy-button" type="button" data-copy-target="params">Copy</button>
+    </div>
     <pre id="params">(waiting for Branch init...)</pre>
 
-    <h2>Payload sent to setBranchViewData()</h2>
+    <div class="section-header">
+        <h2>Payload sent to setBranchViewData()</h2>
+        <button class="copy-button" type="button" data-copy-target="payload">Copy</button>
+    </div>
     <pre id="payload">(waiting for Branch init...)</pre>
 
     <h2>Manually re-trigger</h2>
@@ -131,6 +154,10 @@
         manually re-showing the Journey afterward (e.g. after closing it) using a fixed-delay
         sequence instead of listeners.</p>
 
+    <div class="section-header">
+        <h2>Logs</h2>
+        <button class="copy-button" type="button" data-copy-target="logs">Copy</button>
+    </div>
     <pre id="logs">Waiting for Branch init...</pre>
 
     <script>
@@ -190,6 +217,67 @@
             });
         }
 
+        function copyTextToClipboard(text) {
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            var copied = false;
+            try {
+                copied = document.execCommand('copy');
+            } catch (error) {
+                copied = false;
+            }
+
+            document.body.removeChild(textarea);
+
+            if (copied) {
+                return Promise.resolve();
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+
+            return Promise.reject(new Error('Copy not supported'));
+        }
+
+        function selectElementText(el) {
+            var range = document.createRange();
+            range.selectNodeContents(el);
+            var selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        Array.prototype.forEach.call(document.querySelectorAll('.copy-button'), function(button) {
+            button.addEventListener('click', function() {
+                var targetEl = document.getElementById(button.getAttribute('data-copy-target'));
+                if (!targetEl) return;
+
+                var originalLabel = button.textContent;
+
+                copyTextToClipboard(targetEl.textContent).then(function() {
+                    button.textContent = 'Copied!';
+                    setTimeout(function() {
+                        button.textContent = originalLabel;
+                    }, 1200);
+                }).catch(function() {
+                    // Programmatic copy was blocked (browser permissions) — select the
+                    // text instead so the user can still copy it with Ctrl/Cmd+C.
+                    selectElementText(targetEl);
+                    button.textContent = 'Selected — press Ctrl/Cmd+C';
+                    setTimeout(function() {
+                        button.textContent = originalLabel;
+                    }, 2500);
+                });
+            });
+        });
+
         // Reads the search-context parameters directly from the current URL.
         // Only keys that are actually present get included, so this scales across
         // any page/URL shape without per-page configuration.
@@ -224,13 +312,36 @@
         paramsEl.textContent = JSON.stringify(urlContext, null, 2);
         payloadEl.textContent = JSON.stringify(currentPayload, null, 2);
 
-        // init() itself can auto-show a Journey banner (with default data) before our
-        // code runs. Rather than race that with a timeout, we listen for the Journey
-        // lifecycle events and only touch setBranchViewData/track once didCloseJourney
-        // confirms it's safe — this is the same pattern proven out in journey-test.html's
-        // "Listener Test" flow, and matches Branch's documented guidance for
-        // programmatically closing/reapplying a Journey.
+        // init() itself can auto-show a Journey banner (with default data) as soon as
+        // it starts, before any code in the init() callback has a chance to run. So the
+        // listener has to be registered BEFORE init() is called — not inside its
+        // callback — or the very first didShowJourney event is missed entirely. The SDK
+        // queues calls in the order they're made, so this ordering is safe even before
+        // the real script has loaded.
         var dataApplied = false;
+
+        branch.addListener(function(event, eventData) {
+            log('Journey event', { event: event, data: eventData || {} });
+
+            if (event === 'didShowJourney' && !dataApplied) {
+                branch.closeJourney(function(closeErr, closeData) {
+                    log('closeJourney callback', {
+                        err: closeErr ? String(closeErr.message || closeErr) : '',
+                        data: closeData || {}
+                    });
+                });
+            }
+
+            if (event === 'didCloseJourney' && !dataApplied) {
+                dataApplied = true;
+
+                branch.setBranchViewData(currentPayload);
+                log('Applied setBranchViewData from URL params', currentPayload);
+
+                branch.track('pageview');
+                log('Re-triggered pageview to show Journey with correct data');
+            }
+        });
 
         branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D', function(err, data) {
             if (err) {
@@ -239,29 +350,6 @@
             }
 
             log('Branch init data', data || {});
-
-            branch.addListener(function(event, eventData) {
-                log('Journey event', { event: event, data: eventData || {} });
-
-                if (event === 'didShowJourney' && !dataApplied) {
-                    branch.closeJourney(function(closeErr, closeData) {
-                        log('closeJourney callback', {
-                            err: closeErr ? String(closeErr.message || closeErr) : '',
-                            data: closeData || {}
-                        });
-                    });
-                }
-
-                if (event === 'didCloseJourney' && !dataApplied) {
-                    dataApplied = true;
-
-                    branch.setBranchViewData(currentPayload);
-                    log('Applied setBranchViewData from URL params', currentPayload);
-
-                    branch.track('pageview');
-                    log('Re-triggered pageview to show Journey with correct data');
-                }
-            });
 
             branchReady = true;
             log('Branch init complete');
