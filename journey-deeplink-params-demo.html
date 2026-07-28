@@ -89,9 +89,21 @@
             display: block;
             margin: 4px 0;
         }
+
+        #page-version {
+            display: inline-block;
+            background: #ffeb99;
+            border: 1px solid #d9b84a;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
+    <div id="page-version">Page last edited: 2026-07-28 19:58:33 UTC</div>
     <h1>Journey Dynamic Deep Link Data Demo</h1>
 
     <p>
@@ -312,20 +324,44 @@
         paramsEl.textContent = JSON.stringify(urlContext, null, 2);
         payloadEl.textContent = JSON.stringify(currentPayload, null, 2);
 
-        // Same pattern as journey-test.html's "Listener Test": setBranchViewData()
-        // and closeJourney() are called directly, back-to-back, from a plain callback —
-        // never from inside a Journey lifecycle event handler. Calling closeJourney()
-        // from within the didShowJourney callback itself is a re-entrant call into the
-        // SDK while it's still mid-dispatch, which accepts the close (err: "") but never
-        // completes the willCloseJourney/didCloseJourney lifecycle. Registering the
-        // listener before init() just makes sure we don't miss didCloseJourney.
-        var handled = false;
+        // Same close-then-reapply pattern as journey-test.html's "Listener Test":
+        // setBranchViewData() and closeJourney() are called directly, back-to-back.
+        // Two constraints, both proven by testing, decide when that call fires:
+        //   1. It can't run immediately in the init() callback — the banner hasn't
+        //      rendered yet at that point (didShowJourney hasn't fired), so closeJourney()
+        //      finds nothing to close and is a no-op.
+        //   2. It can't run synchronously inside the didShowJourney listener either —
+        //      that's a re-entrant call into the SDK while it's still mid-dispatch of
+        //      that same event, which accepts the close (err: "") but never completes
+        //      the willCloseJourney/didCloseJourney lifecycle afterward.
+        // setTimeout(fn, 0) inside didShowJourney satisfies both: it only fires once the
+        // banner has genuinely rendered, and it runs on a fresh tick, outside the SDK's
+        // event-dispatch call stack — the same effect journey-test.html gets for free by
+        // waiting for a real button click.
+        var closeTriggered = false;
+        var reshowTriggered = false;
 
         branch.addListener(function(event, eventData) {
             log('Journey event', { event: event, data: eventData || {} });
 
-            if (event === 'didCloseJourney' && !handled) {
-                handled = true;
+            if (event === 'didShowJourney' && !closeTriggered) {
+                closeTriggered = true;
+
+                setTimeout(function() {
+                    branch.setBranchViewData(currentPayload);
+                    log('Applied setBranchViewData from URL params', currentPayload);
+
+                    branch.closeJourney(function(closeErr, closeData) {
+                        log('closeJourney callback', {
+                            err: closeErr ? String(closeErr.message || closeErr) : '',
+                            data: closeData || {}
+                        });
+                    });
+                }, 0);
+            }
+
+            if (event === 'didCloseJourney' && !reshowTriggered) {
+                reshowTriggered = true;
                 branch.track('pageview');
                 log('Re-triggered pageview to show Journey with correct data');
             }
@@ -338,16 +374,6 @@
             }
 
             log('Branch init data', data || {});
-
-            branch.setBranchViewData(currentPayload);
-            log('Applied setBranchViewData from URL params', currentPayload);
-
-            branch.closeJourney(function(closeErr, closeData) {
-                log('closeJourney callback', {
-                    err: closeErr ? String(closeErr.message || closeErr) : '',
-                    data: closeData || {}
-                });
-            });
 
             branchReady = true;
             log('Branch init complete');
