@@ -22,26 +22,28 @@
         b[r]=function(){b._q.push([r,arguments]);};
     },{_q:[],_v:1},"addListener applyCode autoAppIndex banner closeBanner closeJourney creditHistory credits data deepview deepviewCta first getCode init link logout redeem referrals removeListener sendSMS setBranchViewData setIdentity track validateCode trackCommerceEvent logEvent disableTracking qrCode".split(" "),0);
 
-    branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D', function(err, data) {
-        var params = new URLSearchParams(window.location.search);
-        var queryData = {};
-        params.forEach(function(value, key) {
-            queryData[key] = value;
-        });
+    branch.init('key_live_fssu5DnKnzj4HYiSc0TumofbvzjVdZ7y');
 
-        var linkData = {
-            campaign: 'Overridden_Campaign',
-            data: queryData
-        };
-
-        branch.setBranchViewData(linkData);
-
-        branch.closeJourney(function(err, data) {
-            console.log(err, data);
-        });
-
-        branch.track('pageview');
-    });
+    // branch.init('key_live_fssu5DnKnzj4HYiSc0TumofbvzjVdZ7y', function(err, data) {
+    //     var params = new URLSearchParams(window.location.search);
+    //     var queryData = {};
+    //     params.forEach(function(value, key) {
+    //         queryData[key] = value;
+    //     });
+    //
+    //     var linkData = {
+    //         campaign: 'Overridden_Campaign',
+    //         data: queryData
+    //     };
+    //
+    //     branch.setBranchViewData(linkData);
+    //
+    //     branch.closeJourney(function(err, data) {
+    //         console.log(err, data);
+    //     });
+    //
+    //     branch.track('pageview');
+    // });
 </script>
 
 </body>
