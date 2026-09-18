@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Branch Redirect Test</title>
+  <title>Branch CTA Test</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -14,38 +14,129 @@
     a {
       color: #0645ad;
     }
+
+    .cta-button {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 12px 18px;
+      background: #111;
+      color: #fff;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+
+    pre {
+      margin-top: 16px;
+      padding: 10px;
+      background: #f6f6f6;
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
-  <p>Redirecting to Branch link...</p>
-  <p><a id="fallback-link" href="https://linkdebugger.app.link/6wAEyVTPx6b">Open Branch link</a></p>
+  <h1>Branch CTA Test</h1>
+  <p id="status">Checking Link Debugger install signal...</p>
+  <a id="cta-link" class="cta-button" href="https://pdcustom.adeptimus.com/AMWBlKnPx6b">Continue</a>
+  <pre id="debug-json">{}</pre>
 
   <script>
-    var BRANCH_LINK = 'https://linkdebugger.app.link/6wAEyVTPx6b';
+    var LINK_DEBUGGER_KEY = 'key_live_fssu5DnKnzj4HYiSc0TumofbvzjVdZ7y';
+    var LINK_DEBUGGER_LINK = 'https://linkdebugger.app.link/6wAEyVTPx6b';
+    var PROMPT_DESIGNER_LINK = 'https://pdcustom.adeptimus.com/AMWBlKnPx6b';
 
-    function isMobileUserAgent() {
-      return /Android|webOS|iPhone;|iPad;|iProd;|itouch;|iPod|BlackBerry|IEMobile|Opera Mini|(Windows Phone)/i.test(navigator.userAgent);
-    }
+    var statusEl = document.getElementById('status');
+    var ctaLinkEl = document.getElementById('cta-link');
+    var debugJsonEl = document.getElementById('debug-json');
 
-    function redirectToBranchLink() {
-      var userAgent = navigator.userAgent;
+    /*
+     * Adobe-style auto redirect reference. Commented out for now.
+     *
+     * function isMobileUserAgent() {
+     *   return /Android|webOS|iPhone;|iPad;|iProd;|itouch;|iPod|BlackBerry|IEMobile|Opera Mini|(Windows Phone)/i.test(navigator.userAgent);
+     * }
+     *
+     * function redirectToBranchLink() {
+     *   var userAgent = navigator.userAgent;
+     *
+     *   if (/\bAndroid 2.[01]\b/.test(userAgent) || /\bAndroid 1.[0-9]\b/.test(userAgent)) {
+     *     window.location = LINK_DEBUGGER_LINK;
+     *   } else if (/\bOS [4]_[0-2]\w*\b/.test(userAgent) || /\bOS [123]_[0-9]\w*\b/.test(userAgent)) {
+     *     window.location = LINK_DEBUGGER_LINK;
+     *   } else if (/(Windows Phone)/.test(userAgent)) {
+     *     window.location = LINK_DEBUGGER_LINK;
+     *   } else {
+     *     window.location = LINK_DEBUGGER_LINK;
+     *   }
+     * }
+     */
 
-      if (/\bAndroid 2.[01]\b/.test(userAgent) || /\bAndroid 1.[0-9]\b/.test(userAgent)) {
-        window.location = BRANCH_LINK;
-      } else if (/\bOS [4]_[0-2]\w*\b/.test(userAgent) || /\bOS [123]_[0-9]\w*\b/.test(userAgent)) {
-        window.location = BRANCH_LINK;
-      } else if (/(Windows Phone)/.test(userAgent)) {
-        window.location = BRANCH_LINK;
-      } else {
-        window.location = BRANCH_LINK;
+    (function(b,r,a,n,c,h,_,s,d,k){
+      if(!b[n]||!b[n]._q){
+        for(;s<_.length;)c(h,_[s++]);
+        d=r.createElement(a);
+        d.async=1;
+        d.src="https://cdn.branch.io/branch-latest.min.js";
+        k=r.getElementsByTagName(a)[0];
+        k.parentNode.insertBefore(d,k);
+        b[n]=h;
       }
+    })(window,document,"script","branch",function(b,r){
+      b[r]=function(){b._q.push([r,arguments]);};
+    },{_q:[],_v:1},"init data".split(" "),0);
+
+    function findHasApp(value) {
+      if (!value || typeof value !== 'object') return undefined;
+      if (Object.prototype.hasOwnProperty.call(value, 'has_app')) {
+        return value.has_app;
+      }
+
+      var keys = Object.keys(value);
+      for (var i = 0; i < keys.length; i += 1) {
+        var found = findHasApp(value[keys[i]]);
+        if (found !== undefined) return found;
+      }
+
+      return undefined;
     }
 
-    if (isMobileUserAgent()) {
-      redirectToBranchLink();
-    } else {
-      document.querySelector('p').textContent = 'Desktop detected. Use the link below to open the Branch link.';
+    function setCta(hasApp, payload) {
+      var target = hasApp ? LINK_DEBUGGER_LINK : PROMPT_DESIGNER_LINK;
+      var label = hasApp ? 'Open Link Debugger' : 'Continue to Prompt Designer';
+
+      ctaLinkEl.href = target;
+      ctaLinkEl.textContent = label;
+      statusEl.textContent = hasApp
+        ? 'Link Debugger detected from Branch Web SDK payload.'
+        : 'Link Debugger not detected. CTA points to Prompt Designer.';
+      debugJsonEl.textContent = JSON.stringify(payload, null, 2);
     }
+
+    branch.init(LINK_DEBUGGER_KEY, function(initErr, initData) {
+      branch.data(function(dataErr, attributionData) {
+        var payload = {
+          init: {
+            error: initErr ? String(initErr.message || initErr) : null,
+            data: initData || null,
+            has_app: findHasApp(initData)
+          },
+          last_attributed_touch_data: {
+            error: dataErr ? String(dataErr.message || dataErr) : null,
+            data: attributionData || null,
+            has_app: findHasApp(attributionData)
+          },
+          selected_link: null,
+          received_at: new Date().toISOString(),
+          user_agent: navigator.userAgent
+        };
+
+        var hasApp = payload.init.has_app === true || payload.last_attributed_touch_data.has_app === true;
+        payload.selected_link = hasApp ? LINK_DEBUGGER_LINK : PROMPT_DESIGNER_LINK;
+        setCta(hasApp, payload);
+      });
+    });
   </script>
 </body>
 </html>
