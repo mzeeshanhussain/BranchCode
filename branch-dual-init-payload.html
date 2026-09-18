@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Branch Dual Init Payload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 16px;
+      color: #111;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 0 0 12px;
+    }
+
+    .app {
+      border: 1px solid #ccc;
+      margin: 12px 0;
+      padding: 12px;
+    }
+
+    .app h2 {
+      font-size: 18px;
+      margin: 0 0 8px;
+    }
+
+    .status {
+      margin: 0 0 8px;
+      font-weight: bold;
+    }
+
+    pre {
+      background: #f6f6f6;
+      border: 1px solid #ddd;
+      margin: 0;
+      padding: 10px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    iframe {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Branch Dual Init Payload</h1>
+
+  <section class="app">
+    <h2>Prompt Designer / Partner App</h2>
+    <p id="prompt-status" class="status">Waiting...</p>
+    <pre id="prompt-json">{}</pre>
+  </section>
+
+  <section class="app">
+    <h2>Link Debugger / Main App</h2>
+    <p id="link-debugger-status" class="status">Waiting...</p>
+    <pre id="link-debugger-json">{}</pre>
+  </section>
+
+  <script>
+    var APPS = {
+      prompt: {
+        name: 'Prompt Designer / Partner App',
+        key: 'key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D',
+        statusId: 'prompt-status',
+        jsonId: 'prompt-json'
+      },
+      linkDebugger: {
+        name: 'Link Debugger / Main App',
+        key: 'key_live_fssu5DnKnzj4HYiSc0TumofbvzjVdZ7y',
+        statusId: 'link-debugger-status',
+        jsonId: 'link-debugger-json'
+      }
+    };
+
+    function stringify(value) {
+      return JSON.stringify(value, null, 2);
+    }
+
+    function findHasApp(value) {
+      if (!value || typeof value !== 'object') return undefined;
+      if (Object.prototype.hasOwnProperty.call(value, 'has_app')) {
+        return value.has_app;
+      }
+
+      var keys = Object.keys(value);
+      for (var i = 0; i < keys.length; i += 1) {
+        var found = findHasApp(value[keys[i]]);
+        if (found !== undefined) return found;
+      }
+
+      return undefined;
+    }
+
+    function setResult(appId, result) {
+      var app = APPS[appId];
+      var hasApp = findHasApp(result);
+      var status = hasApp === undefined ? 'has_app: not present' : 'has_app: ' + String(hasApp);
+
+      document.getElementById(app.statusId).textContent = status;
+      document.getElementById(app.jsonId).textContent = stringify(result);
+    }
+
+    function runInitInCleanFrame(appId) {
+      return new Promise(function(resolve) {
+        var app = APPS[appId];
+        var frame = document.createElement('iframe');
+        var timeoutId = null;
+
+        function cleanup(result) {
+          clearTimeout(timeoutId);
+          window.removeEventListener('message', onMessage);
+          frame.remove();
+          resolve(result);
+        }
+
+        function onMessage(event) {
+          if (event.source !== frame.contentWindow) return;
+          if (!event.data || event.data.type !== 'branch-init-result') return;
+          if (event.data.appId !== appId) return;
+          cleanup(event.data.result);
+        }
+
+        window.addEventListener('message', onMessage);
+
+        timeoutId = setTimeout(function() {
+          cleanup({
+            app: app.name,
+            branch_key: app.key,
+            error: 'Timed out waiting for Branch init callback',
+            data: null,
+            has_app: null
+          });
+        }, 10000);
+
+        var url = new URL(window.location.href);
+        url.searchParams.set('__branch_diag_child', appId);
+        frame.src = url.toString();
+        document.body.appendChild(frame);
+      });
+    }
+
+    async function run() {
+      var promptResult = await runInitInCleanFrame('prompt');
+      setResult('prompt', promptResult);
+
+      var linkDebuggerResult = await runInitInCleanFrame('linkDebugger');
+      setResult('linkDebugger', linkDebuggerResult);
+    }
+
+    function runChild(appId) {
+      var app = APPS[appId];
+
+      (function(b,r,a,n,c,h,_,s,d,k){
+        if(!b[n]||!b[n]._q){
+          for(;s<_.length;)c(h,_[s++]);
+          d=r.createElement(a);
+          d.async=1;
+          d.src="https://cdn.branch.io/branch-latest.min.js";
+          k=r.getElementsByTagName(a)[0];
+          k.parentNode.insertBefore(d,k);
+          b[n]=h;
+        }
+      })(window,document,"script","branch",function(b,r){
+        b[r]=function(){b._q.push([r,arguments]);};
+      },{_q:[],_v:1},"init".split(" "),0);
+
+      branch.init(app.key, function(err, data) {
+        window.parent.postMessage({
+          type: 'branch-init-result',
+          appId: appId,
+          result: {
+            app: app.name,
+            branch_key: app.key,
+            error: err ? String(err.message || err) : null,
+            data: data || null,
+            has_app: findHasApp(data),
+            user_agent: navigator.userAgent,
+            page_url: window.location.href,
+            received_at: new Date().toISOString()
+          }
+        }, '*');
+      });
+    }
+
+    var childAppId = new URLSearchParams(window.location.search).get('__branch_diag_child');
+
+    if (childAppId && APPS[childAppId]) {
+      document.body.style.display = 'none';
+      runChild(childAppId);
+    } else {
+      run();
+    }
+  </script>
+</body>
+</html>
