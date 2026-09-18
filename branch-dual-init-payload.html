@@ -32,6 +32,11 @@
       font-weight: bold;
     }
 
+    h3 {
+      font-size: 14px;
+      margin: 12px 0 6px;
+    }
+
     pre {
       background: #f6f6f6;
       border: 1px solid #ddd;
@@ -55,13 +60,19 @@
   <section class="app">
     <h2>Prompt Designer / Partner App</h2>
     <p id="prompt-status" class="status">Waiting...</p>
-    <pre id="prompt-json">{}</pre>
+    <h3>Init Payload</h3>
+    <pre id="prompt-init-json">{}</pre>
+    <h3>Last Attributed Touch Data</h3>
+    <pre id="prompt-attribution-json">{}</pre>
   </section>
 
   <section class="app">
     <h2>Link Debugger / Main App</h2>
     <p id="link-debugger-status" class="status">Waiting...</p>
-    <pre id="link-debugger-json">{}</pre>
+    <h3>Init Payload</h3>
+    <pre id="link-debugger-init-json">{}</pre>
+    <h3>Last Attributed Touch Data</h3>
+    <pre id="link-debugger-attribution-json">{}</pre>
   </section>
 
   <script>
@@ -70,13 +81,15 @@
         name: 'Prompt Designer / Partner App',
         key: 'key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D',
         statusId: 'prompt-status',
-        jsonId: 'prompt-json'
+        initJsonId: 'prompt-init-json',
+        attributionJsonId: 'prompt-attribution-json'
       },
       linkDebugger: {
         name: 'Link Debugger / Main App',
         key: 'key_live_fssu5DnKnzj4HYiSc0TumofbvzjVdZ7y',
         statusId: 'link-debugger-status',
-        jsonId: 'link-debugger-json'
+        initJsonId: 'link-debugger-init-json',
+        attributionJsonId: 'link-debugger-attribution-json'
       }
     };
 
@@ -105,7 +118,8 @@
       var status = hasApp === undefined ? 'has_app: not present' : 'has_app: ' + String(hasApp);
 
       document.getElementById(app.statusId).textContent = status;
-      document.getElementById(app.jsonId).textContent = stringify(result);
+      document.getElementById(app.initJsonId).textContent = stringify(result.init);
+      document.getElementById(app.attributionJsonId).textContent = stringify(result.last_attributed_touch_data);
     }
 
     function runInitInCleanFrame(appId) {
@@ -134,9 +148,15 @@
           cleanup({
             app: app.name,
             branch_key: app.key,
-            error: 'Timed out waiting for Branch init callback',
-            data: null,
-            has_app: null
+            init: {
+              error: 'Timed out waiting for Branch init callback',
+              data: null,
+              has_app: null
+            },
+            last_attributed_touch_data: {
+              error: 'Skipped because Branch init timed out',
+              data: null
+            }
           });
         }, 10000);
 
@@ -170,23 +190,36 @@
         }
       })(window,document,"script","branch",function(b,r){
         b[r]=function(){b._q.push([r,arguments]);};
-      },{_q:[],_v:1},"init".split(" "),0);
+      },{_q:[],_v:1},"init data".split(" "),0);
 
-      branch.init(app.key, function(err, data) {
+      function sendResult(initErr, initData, attributionErr, attributionData) {
         window.parent.postMessage({
           type: 'branch-init-result',
           appId: appId,
           result: {
             app: app.name,
             branch_key: app.key,
-            error: err ? String(err.message || err) : null,
-            data: data || null,
-            has_app: findHasApp(data),
+            init: {
+              error: initErr ? String(initErr.message || initErr) : null,
+              data: initData || null,
+              has_app: findHasApp(initData)
+            },
+            last_attributed_touch_data: {
+              error: attributionErr ? String(attributionErr.message || attributionErr) : null,
+              data: attributionData || null,
+              has_app: findHasApp(attributionData)
+            },
             user_agent: navigator.userAgent,
             page_url: window.location.href,
             received_at: new Date().toISOString()
           }
         }, '*');
+      }
+
+      branch.init(app.key, function(initErr, initData) {
+        branch.data(function(attributionErr, attributionData) {
+          sendResult(initErr, initData, attributionErr, attributionData);
+        });
       });
     }
 
