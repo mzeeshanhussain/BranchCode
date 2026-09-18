@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Branch CTA Test</title>
+  <title>Branch Auto Launch Test</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,16 +13,6 @@
 
     a {
       color: #0645ad;
-    }
-
-    .cta-button {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 12px 18px;
-      background: #111;
-      color: #fff;
-      border-radius: 4px;
-      text-decoration: none;
     }
 
     pre {
@@ -37,11 +27,10 @@
   </style>
 </head>
 <body>
-  <h1>Branch CTA Test</h1>
+  <h1>Branch Auto Launch Test</h1>
   <p><a href="https://linkdebugger.app.link/6wAEyVTPx6b">Link Debugger link</a></p>
   <p><a href="https://pdcustom.adeptimus.com/AMWBlKnPx6b">Prompt Designer link</a></p>
   <p id="status">Checking Link Debugger install signal...</p>
-  <a id="cta-link" class="cta-button" href="https://pdcustom.adeptimus.com/AMWBlKnPx6b">Continue</a>
   <pre id="debug-json">{}</pre>
 
   <script>
@@ -50,7 +39,6 @@
     var PROMPT_DESIGNER_LINK = 'https://pdcustom.adeptimus.com/AMWBlKnPx6b';
 
     var statusEl = document.getElementById('status');
-    var ctaLinkEl = document.getElementById('cta-link');
     var debugJsonEl = document.getElementById('debug-json');
 
     /*
@@ -104,16 +92,15 @@
       return undefined;
     }
 
-    function setCta(hasApp, payload) {
+    function launchSelectedLink(hasApp, payload) {
       var target = hasApp ? LINK_DEBUGGER_LINK : PROMPT_DESIGNER_LINK;
-      var label = hasApp ? 'Open Link Debugger' : 'Continue to Prompt Designer';
 
-      ctaLinkEl.href = target;
-      ctaLinkEl.textContent = label;
       statusEl.textContent = hasApp
-        ? 'Link Debugger detected from Branch Web SDK payload.'
-        : 'Link Debugger not detected. CTA points to Prompt Designer.';
+        ? 'Link Debugger detected. Launching Link Debugger link...'
+        : 'Link Debugger not detected. Launching Prompt Designer link...';
       debugJsonEl.textContent = JSON.stringify(payload, null, 2);
+
+      window.location = target;
     }
 
     branch.init(LINK_DEBUGGER_KEY, function(initErr, initData) {
@@ -136,7 +123,7 @@
 
         var hasApp = payload.init.has_app === true || payload.last_attributed_touch_data.has_app === true;
         payload.selected_link = hasApp ? LINK_DEBUGGER_LINK : PROMPT_DESIGNER_LINK;
-        setCta(hasApp, payload);
+        launchSelectedLink(hasApp, payload);
       });
     });
   </script>
