@@ -40,7 +40,6 @@
   <h1>Branch CTA Test</h1>
   <p><a href="https://linkdebugger.app.link/6wAEyVTPx6b">Link Debugger link</a></p>
   <p><a href="https://pdcustom.adeptimus.com/AMWBlKnPx6b">Prompt Designer link</a></p>
-  <p id="status">Checking Link Debugger install signal...</p>
   <a id="cta-link" class="cta-button" href="https://pdcustom.adeptimus.com/AMWBlKnPx6b">View in App</a>
   <pre id="debug-json">{}</pre>
 
@@ -49,7 +48,6 @@
     var LINK_DEBUGGER_LINK = 'https://linkdebugger.app.link/6wAEyVTPx6b';
     var PROMPT_DESIGNER_LINK = 'https://pdcustom.adeptimus.com/AMWBlKnPx6b';
 
-    var statusEl = document.getElementById('status');
     var ctaLinkEl = document.getElementById('cta-link');
     var debugJsonEl = document.getElementById('debug-json');
 
@@ -109,9 +107,6 @@
 
       ctaLinkEl.href = target;
       ctaLinkEl.textContent = 'View in App';
-      statusEl.textContent = hasApp
-        ? 'Link Debugger detected from Branch Web SDK payload.'
-        : 'Link Debugger not detected. CTA points to Prompt Designer.';
       debugJsonEl.textContent = JSON.stringify(payload, null, 2);
     }
 
