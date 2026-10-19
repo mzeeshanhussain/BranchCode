@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journey Dynamic Shows Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            margin: 12px;
+            padding-bottom: 120px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 8px;
+        }
+
+        p {
+            margin: 6px 0;
+        }
+
+        button {
+            margin: 4px 4px 0 0;
+            padding: 8px 10px;
+            font-size: 14px;
+        }
+
+        button.active {
+            background: #111;
+            color: #fff;
+        }
+
+        #payload,
+        #logs {
+            border: 1px solid #ccc;
+            background: #f7f7f7;
+            padding: 8px;
+            margin-top: 10px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 12px;
+            line-height: 1.3;
+        }
+
+        #payload {
+            max-height: 180px;
+        }
+
+        #logs {
+            height: 220px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Journey Dynamic Shows Test</h1>
+
+    <p>The <code>show</code> query param picks the title, description and icon for the Journey.</p>
+    <p>Try: <a href="?show=breakingBad">?show=breakingBad</a>, <a href="?show=strangerThings">?show=strangerThings</a>, <a href="?show=theOffice">?show=theOffice</a>, <a href="?show=theCrown">?show=theCrown</a></p>
+    <p>Current: <b id="current">(none)</b></p>
+
+    <div id="shows"></div>
+
+    <p><b>Payload sent:</b></p>
+    <pre id="payload">Waiting for a show...</pre>
+
+    <pre id="logs">Waiting for Branch init...</pre>
+
+    <script>
+        var SHOWS = {
+            breakingBad: {
+                title: 'Breaking Bad',
+                description: 'A chemistry teacher turns to crime',
+                icon: 'images/breakingBad.svg'
+            },
+            strangerThings: {
+                title: 'Stranger Things',
+                description: 'Strange events in a small town',
+                icon: 'images/strangerThings.svg'
+            },
+            theOffice: {
+                title: 'The Office',
+                description: 'Life at a paper company',
+                icon: 'images/theOffice.svg'
+            },
+            theCrown: {
+                title: 'The Crown',
+                description: 'Decades of royal history',
+                icon: 'images/theCrown.svg'
+            }
+        };
+
+        var logsEl = document.getElementById('logs');
+        var payloadEl = document.getElementById('payload');
+        var showsEl = document.getElementById('shows');
+        var currentEl = document.getElementById('current');
+        var branchReady = false;
+        var journeyShown = false;
+        var logStartMs = Date.now();
+
+        (function(b,r,a,n,c,h,_,s,d,k){
+            if(!b[n]||!b[n]._q){
+                for(;s<_.length;)c(h,_[s++]);
+                d=r.createElement(a);
+                d.async=1;
+                d.src="https://cdn.branch.io/branch-latest.min.js";
+                k=r.getElementsByTagName(a)[0];
+                k.parentNode.insertBefore(d,k);
+                b[n]=h;
+            }
+        })(window,document,"script","branch",function(b,r){
+            b[r]=function(){b._q.push([r,arguments]);};
+        },{_q:[],_v:1},"addListener applyCode autoAppIndex banner closeBanner closeJourney creditHistory credits data deepview deepviewCta first getCode init link logout redeem referrals removeListener sendSMS setBranchViewData setIdentity track validateCode trackCommerceEvent logEvent disableTracking qrCode".split(" "),0);
+
+        function log(message, data) {
+            var elapsed = Date.now() - logStartMs;
+            var line = '[jl +' + elapsed + 'ms] ' + message;
+
+            console.log(line, data === undefined ? '' : data);
+
+            if (data !== undefined) {
+                try {
+                    line += '\n' + JSON.stringify(data, null, 2);
+                } catch (error) {
+                    line += '\n' + String(data);
+                }
+            }
+
+            if (logsEl.textContent === 'Waiting for Branch init...') {
+                logsEl.textContent = line;
+            } else {
+                logsEl.textContent += '\n\n' + line;
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(function(resolve) {
+                setTimeout(resolve, ms);
+            });
+        }
+
+        function buildPayload(key) {
+            var show = SHOWS[key];
+            // Absolute URL so the icon resolves wherever Branch renders the banner.
+            var iconUrl = new URL(show.icon, window.location.href).href;
+
+            return {
+                data: {
+                    '$journeys_title': show.title,
+                    '$journeys_description': show.description,
+                    '$journeys_icon_image_url': iconUrl,
+                    // Same values as custom liquid tags: {{ show_title | ... }} etc.
+                    show_title: show.title,
+                    show_description: show.description,
+                    show_icon: iconUrl,
+                    show_id: key
+                }
+            };
+        }
+
+        async function applyShow(key) {
+            if (!SHOWS[key]) {
+                log('Unknown show: ' + key, { known: Object.keys(SHOWS) });
+                return;
+            }
+
+            if (!branchReady) {
+                log('Branch is not ready yet');
+                return;
+            }
+
+            currentEl.textContent = key;
+            Array.prototype.forEach.call(showsEl.children, function(el) {
+                el.classList.toggle('active', el.dataset.show === key);
+            });
+
+            var payload = buildPayload(key);
+            payloadEl.textContent = JSON.stringify(payload, null, 2);
+
+            log('Applying show: ' + key, payload);
+
+            branch.setBranchViewData(payload);
+
+            await sleep(300);
+
+            // With no_journeys the first pass has no banner to close. Later passes
+            // (button clicks) must close the visible banner before re-showing it.
+            if (journeyShown) {
+                branch.closeJourney(function(err, data) {
+                    log('closeJourney callback', {
+                        err: err ? String(err.message || err) : '',
+                        data: data || {}
+                    });
+                });
+
+                await sleep(500);
+            }
+
+            // Shows the banner (first pass) or re-renders it with the new values.
+            branch.track('pageview');
+            journeyShown = true;
+            log('Tracked pageview');
+        }
+
+        Object.keys(SHOWS).forEach(function(key) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.show = key;
+            button.textContent = SHOWS[key].title;
+            button.addEventListener('click', function() {
+                // Keep the URL in sync so a refresh reproduces the same state.
+                var url = new URL(window.location.href);
+                url.searchParams.set('show', key);
+                history.replaceState(null, '', url);
+                applyShow(key);
+            });
+            showsEl.appendChild(button);
+        });
+
+        branch.addListener(function(event, data) {
+            log('Listener event', { event: event, data: data || {} });
+        });
+
+        // no_journeys keeps the default banner from rendering at init; the pageview in applyShow shows it.
+        branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D', { no_journeys: true }, function(err, data) {
+            if (err) {
+                log('Branch init error', err);
+                return;
+            }
+
+            branchReady = true;
+            log('Branch init complete', data || {});
+
+            var show = new URLSearchParams(window.location.search).get('show');
+            if (show) {
+                applyShow(show);
+            }
+        });
+    </script>
+</body>
+</html>
