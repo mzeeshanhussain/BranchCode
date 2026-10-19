@@ -70,6 +70,8 @@
     <pre id="logs">Waiting for Branch init...</pre>
 
     <script>
+        var BRANCH_KEY = 'key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D';
+
         var SHOWS = {
             breakingBad: {
                 title: 'Breaking Bad',
@@ -225,7 +227,7 @@
         });
 
         // no_journeys keeps the default banner from rendering at init; the pageview in applyShow shows it.
-        branch.init('key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D', { no_journeys: true }, function(err, data) {
+        branch.init(BRANCH_KEY, { no_journeys: true }, function(err, data) {
             if (err) {
                 log('Branch init error', err);
                 return;

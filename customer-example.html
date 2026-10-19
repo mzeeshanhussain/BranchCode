@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Branch Journeys: Dynamic Banner Example</title>
+</head>
+<body>
+  <h1>Dynamic Banner Example</h1>
+  <p>Try: <a href="?show=showOne">?show=showOne</a> |
+     <a href="?show=showTwo">?show=showTwo</a> |
+     <a href="?show=showThree">?show=showThree</a></p>
+
+  <script>
+    // ---------------------------------------------------------------
+    // 1. REPLACE with your Branch key
+    // ---------------------------------------------------------------
+    var BRANCH_KEY = 'key_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+
+    // ---------------------------------------------------------------
+    // 2. REPLACE with your own content. Image URLs must be publicly
+    //    reachable (you create and host the images).
+    // ---------------------------------------------------------------
+    var SHOWS = {
+      showOne:   { title: 'Show One',   description: 'Description for show one',   imageUrl: 'https://picsum.photos/id/1011/200/200' },
+      showTwo:   { title: 'Show Two',   description: 'Description for show two',   imageUrl: 'https://picsum.photos/id/1080/200/200' },
+      showThree: { title: 'Show Three', description: 'Description for show three', imageUrl: 'https://picsum.photos/id/1015/200/200' }
+    };
+
+    // Branch Web SDK loader
+    (function(b,r,a,n,c,h,_,s,d,k){
+      if(!b[n]||!b[n]._q){
+        for(;s<_.length;)c(h,_[s++]);
+        d=r.createElement(a);
+        d.async=1;
+        d.src="https://cdn.branch.io/branch-latest.min.js";
+        k=r.getElementsByTagName(a)[0];
+        k.parentNode.insertBefore(d,k);
+        b[n]=h;
+      }
+    })(window,document,"script","branch",function(b,r){
+      b[r]=function(){b._q.push([r,arguments]);};
+    },{_q:[],_v:1},"addListener closeJourney init setBranchViewData track".split(" "),0);
+
+    // ---------------------------------------------------------------
+    // KEY AREA A: no_journeys stops the default banner from rendering
+    //             (and flashing) before our content is set.
+    // ---------------------------------------------------------------
+    branch.init(BRANCH_KEY, { no_journeys: true }, function (err, data) {
+      if (err) { console.error('Branch init error', err); return; }
+
+      var show = SHOWS[new URLSearchParams(window.location.search).get('show')];
+      if (!show) { console.log('No matching show, banner not shown'); return; }
+
+      // -------------------------------------------------------------
+      // KEY AREA B: title, description and image go in as
+      //             $journeys_* keys. This is what makes one banner
+      //             work for any number of shows.
+      // -------------------------------------------------------------
+      branch.setBranchViewData({
+        data: {
+          '$journeys_title': show.title,
+          '$journeys_description': show.description,
+          '$journeys_icon_image_url': show.imageUrl
+        }
+      });
+
+      // -------------------------------------------------------------
+      // KEY AREA C: the pageview is what displays the banner.
+      //             Short wait so the data above is set first.
+      // -------------------------------------------------------------
+      setTimeout(function () {
+        branch.track('pageview');
+      }, 300);
+    });
+  </script>
+</body>
+</html>
