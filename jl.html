@@ -192,7 +192,7 @@
             branch.setBranchViewData(payload);
 
             await sleep(300);
-
+            branch.track('pageview');
             // With no_journeys the first pass has no banner to close. Later passes
             // (button clicks) must close the visible banner before re-showing it.
             if (journeyShown) {
@@ -207,7 +207,7 @@
             }
 
             // Shows the banner (first pass) or re-renders it with the new values.
-            branch.track('pageview');
+           
             journeyShown = true;
             log('Tracked pageview');
         }
