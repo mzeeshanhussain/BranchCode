@@ -150,6 +150,8 @@
             var iconUrl = new URL(show.icon, window.location.href).href;
 
             return {
+                channel: 'JOUR',
+                campaign: 'CustomCampaign_' + key,
                 tags: ['customTag', show.title],
                 data: {
                     '$journeys_title': show.title,
