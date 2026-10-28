@@ -159,7 +159,7 @@
             var iconUrl = new URL(show.icon, window.location.href).href;
 
             var payload = {
-                channel: 'JOUR',
+                channel: 'JOUR_OCT_28_411',
                 campaign: 'CustomCampaign_' + key,
                 tags: ['customTag', show.title],
                 data: {
@@ -195,10 +195,6 @@
                 applyShow(key);
             });
             showsEl.appendChild(button);
-        });
-
-        branch.addListener(function(event, data) {
-            log('Listener event', { event: event, data: data || {} });
         });
 
         // Step 0: init with no_journeys so nothing shows before we've set our data.
