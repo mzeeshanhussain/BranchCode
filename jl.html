@@ -150,12 +150,13 @@
             var iconUrl = new URL(show.icon, window.location.href).href;
 
             return {
+                tags: ['jl-demo', key,show.title],
                 data: {
                     '$journeys_title': show.title,
                     '$journeys_description': show.description,
                     '$journeys_icon_image_url': iconUrl,
-                    '$tag1':show.title,
-                    tags: ['customtag1', show.title],
+
+
                     // Same values as custom liquid tags: {{ show_title | ... }} etc.
                     show_title: show.title,
                     show_description: show.description,
