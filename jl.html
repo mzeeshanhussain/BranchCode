@@ -70,7 +70,7 @@
     <pre id="logs">Waiting for Branch init...</pre>
 
     <script>
-        var BRANCH_KEY = 'key_live_bqqwh41FYDtxSbZsQktKOlaoACfJkl3D';
+        var BRANCH_KEY = '<BRANCH KEY HERE>';
 
         var SHOWS = {
             breakingBad: {
@@ -154,6 +154,7 @@
                     '$journeys_title': show.title,
                     '$journeys_description': show.description,
                     '$journeys_icon_image_url': iconUrl,
+                    tags:[show.title,key,'custom_banner'],
                     // Same values as custom liquid tags: {{ show_title | ... }} etc.
                     show_title: show.title,
                     show_description: show.description,
