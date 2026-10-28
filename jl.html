@@ -179,8 +179,17 @@
             branch.setBranchViewData(payload);
             log('Called setBranchViewData');
 
-            branch.track('pageview');
-            log('Called track(pageview)');
+            if (journeyShown) {
+                branch.closeJourney(function() {
+                    branch.track('pageview');
+                    log('Called track(pageview)');
+                });
+            } else {
+                branch.track('pageview');
+                log('Called track(pageview)');
+            }
+
+            journeyShown = true;
         }
 
         Object.keys(SHOWS).forEach(function(key) {
