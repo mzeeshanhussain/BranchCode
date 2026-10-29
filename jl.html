@@ -150,9 +150,8 @@
             var iconUrl = new URL(show.icon, window.location.href).href;
 
             return {
-                tags: ['customTag', show.title],
-                campaign: 'Overridden Campaign',
-                channel: 'Channel override',
+            
+                channel: show.title+' show page',
                 data: {
                     '$journeys_title': show.title,
                     '$journeys_description': show.description,
