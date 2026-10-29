@@ -59,7 +59,7 @@
     <h1>Journey Dynamic Shows Test</h1>
 
     <p>The <code>show</code> query param picks the title, description and icon for the Journey.</p>
-    <p>Try: <a href="?show=breakingBad">?show=breakingBad</a></p>
+    <p>Try: <a href="?show=breakingBad">?show=breakingBad</a>, <a href="?show=strangerThings">?show=strangerThings</a>, <a href="?show=theOffice">?show=theOffice</a>, <a href="?show=theCrown">?show=theCrown</a></p>
     <p>Current: <b id="current">(none)</b></p>
 
     <div id="shows"></div>
@@ -77,6 +77,21 @@
                 title: 'Breaking Bad',
                 description: 'A chemistry teacher turns to crime',
                 icon: 'images/breakingBad.svg'
+            },
+            strangerThings: {
+                title: 'Stranger Things',
+                description: 'Strange events in a small town',
+                icon: 'images/strangerThings.svg'
+            },
+            theOffice: {
+                title: 'The Office',
+                description: 'Life at a paper company',
+                icon: 'images/theOffice.svg'
+            },
+            theCrown: {
+                title: 'The Crown',
+                description: 'Decades of royal history',
+                icon: 'images/theCrown.svg'
             }
         };
 
@@ -129,9 +144,34 @@
             });
         }
 
-        function applyShow(key) {
+        function buildPayload(key) {
+            var show = SHOWS[key];
+            // Absolute URL so the icon resolves wherever Branch renders the banner.
+            var iconUrl = new URL(show.icon, window.location.href).href;
+
+            return {
+                tags: ['customTag', show.title],
+                data: {
+                    '$journeys_title': show.title,
+                    '$journeys_description': show.description,
+                    '$journeys_icon_image_url': iconUrl,
+                    // Same values as custom liquid tags: {{ show_title | ... }} etc.
+                    show_title: show.title,
+                    show_description: show.description,
+                    show_icon: iconUrl,
+                    show_id: key
+                }
+            };
+        }
+
+        async function applyShow(key) {
             if (!SHOWS[key]) {
                 log('Unknown show: ' + key, { known: Object.keys(SHOWS) });
+                return;
+            }
+
+            if (!branchReady) {
+                log('Branch is not ready yet');
                 return;
             }
 
@@ -140,41 +180,32 @@
                 el.classList.toggle('active', el.dataset.show === key);
             });
 
-            var show = SHOWS[key];
-            var iconUrl = new URL(show.icon, window.location.href).href;
-
-            var payload = {
-                channel: 'JOUR_OCT_28_411',
-                campaign: 'CustomCampaign_' + key,
-                tags: ['customTag', show.title],
-                data: {
-                    '$journeys_title': show.title,
-                    '$journeys_description': show.description,
-                    '$journeys_icon_image_url': iconUrl,
-                    show_title: show.title,
-                    show_description: show.description,
-                    show_icon: iconUrl,
-                    show_id: key
-                }
-            };
-
+            var payload = buildPayload(key);
             payloadEl.textContent = JSON.stringify(payload, null, 2);
-            log('Payload', payload);
+
+            log('Applying show: ' + key, payload);
 
             branch.setBranchViewData(payload);
-            log('Called setBranchViewData');
 
+            await sleep(300);
+
+            // With no_journeys the first pass has no banner to close. Later passes
+            // (button clicks) must close the visible banner before re-showing it.
             if (journeyShown) {
-                branch.closeJourney(function() {
-                    branch.track('pageview');
-                    log('Called track(pageview)');
+                branch.closeJourney(function(err, data) {
+                    log('closeJourney callback', {
+                        err: err ? String(err.message || err) : '',
+                        data: data || {}
+                    });
                 });
-            } else {
-                branch.track('pageview');
-                log('Called track(pageview)');
+
+                await sleep(500);
             }
 
+            // Shows the banner (first pass) or re-renders it with the new values.
+            branch.track('pageview');
             journeyShown = true;
+            log('Tracked pageview');
         }
 
         Object.keys(SHOWS).forEach(function(key) {
@@ -183,6 +214,7 @@
             button.dataset.show = key;
             button.textContent = SHOWS[key].title;
             button.addEventListener('click', function() {
+                // Keep the URL in sync so a refresh reproduces the same state.
                 var url = new URL(window.location.href);
                 url.searchParams.set('show', key);
                 history.replaceState(null, '', url);
@@ -191,7 +223,11 @@
             showsEl.appendChild(button);
         });
 
-        // Step 0: init with no_journeys so nothing shows before we've set our data.
+        branch.addListener(function(event, data) {
+            log('Listener event', { event: event, data: data || {} });
+        });
+
+        // no_journeys keeps the default banner from rendering at init; the pageview in applyShow shows it.
         branch.init(BRANCH_KEY, { no_journeys: true }, function(err, data) {
             if (err) {
                 log('Branch init error', err);
@@ -201,8 +237,10 @@
             branchReady = true;
             log('Branch init complete', data || {});
 
-            var show = new URLSearchParams(window.location.search).get('show') || 'breakingBad';
-            applyShow(show);
+            var show = new URLSearchParams(window.location.search).get('show');
+            if (show) {
+                applyShow(show);
+            }
         });
     </script>
 </body>
